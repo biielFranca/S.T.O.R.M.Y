@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from datetime import datetime
 
 import anthropic
@@ -279,6 +280,8 @@ REGRAS:
 def _classify(message: str) -> dict:
     """Classificador leve - usa LM Studio pra entender a intenção."""
     try:
+        print("[Stormy] Classificando intenção via LM Studio...")
+        t0 = time.time()
         r = requests.post(
             LM_URL,
             json={
@@ -295,12 +298,15 @@ def _classify(message: str) -> dict:
         )
         r.raise_for_status()
         text = r.json()["choices"][0]["message"]["content"].strip()
+        print(f"[Stormy] Classificação recebida em {time.time() - t0:.1f}s")
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             import json
-            return json.loads(match.group())
-    except Exception:
-        pass
+            result = json.loads(match.group())
+            print(f"[Stormy] Intenção: {result}")
+            return result
+    except Exception as e:
+        print(f"[Stormy] Classificação falhou: {e}")
     # Fallback conservador - vai pro LM direto
     return {
         "precisa_externo": False,
@@ -327,8 +333,14 @@ FEW_SHOT = [
 ]
 
 
+_lm_timeout_flag = False
+
 def _lm(messages: list[dict], max_tokens: int = 256) -> str | None:
+    global _lm_timeout_flag
+    _lm_timeout_flag = False
     try:
+        print("[Stormy] Pensando via LM Studio...")
+        t0 = time.time()
         r = requests.post(
             LM_URL,
             json={
@@ -338,11 +350,18 @@ def _lm(messages: list[dict], max_tokens: int = 256) -> str | None:
                 "temperature": 0.3,
                 "max_tokens": max_tokens,
             },
-            timeout=60,
+            timeout=120,
         )
         r.raise_for_status()
+        elapsed = time.time() - t0
+        print(f"[Stormy] Resposta LM Studio recebida em {elapsed:.1f}s")
         return r.json()["choices"][0]["message"]["content"].strip() or None
-    except Exception:
+    except requests.exceptions.Timeout:
+        print("[Stormy] LM Studio demorou demais, tentando Claude...")
+        _lm_timeout_flag = True
+        return None
+    except Exception as e:
+        print(f"[Stormy] Erro LM Studio: {e}")
         return None
 
 
@@ -382,6 +401,7 @@ def _lm_chat(message: str, memory: ConversationMemory) -> str | None:
 
 def _lm_sintetizar(message: str, dados: str, memory: ConversationMemory) -> str | None:
     """LM Studio recebe dados externos e sintetiza na personalidade da Stormy."""
+    print("[Stormy] LM Studio sintetizando dados externos...")
     msgs = [
         {"role": "system", "content": _build_system_prompt("mesclar", dados)},
         *FEW_SHOT,
@@ -606,6 +626,8 @@ def _clean_msgs(messages: list[dict]) -> list[dict]:
 
 def _claude(memory: ConversationMemory, modo: str = "completo", dados: str = "") -> str:
     client = _get_client()
+    print(f"[Stormy] Buscando via Claude (modo={modo})...")
+    t0 = time.time()
     while True:
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -618,6 +640,7 @@ def _claude(memory: ConversationMemory, modo: str = "completo", dados: str = "")
             results = []
             for block in response.content:
                 if block.type == "tool_use":
+                    print(f"[Stormy] Claude usando ferramenta: {block.name}")
                     results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
@@ -628,12 +651,15 @@ def _claude(memory: ConversationMemory, modo: str = "completo", dados: str = "")
             continue
         text = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
         text = _clean_response(text)
+        print(f"[Stormy] Resposta Claude recebida em {time.time() - t0:.1f}s")
         memory.add_assistant(text, engine="claude")
         return text
 
 
 def _claude_buscar(memory: ConversationMemory) -> str:
     """Claude busca dados e retorna o resultado bruto (sem formatar na personalidade)."""
+    print("[Stormy] Claude buscando dados externos...")
+    t0 = time.time()
     client = _get_client()
     system = _build_system_prompt("buscar")
     msgs = _clean_msgs(memory.get())
@@ -671,9 +697,11 @@ def _claude_buscar(memory: ConversationMemory) -> str:
 
         # Retorna os dados coletados pelas ferramentas
         if dados_coletados:
+            print(f"[Stormy] Dados externos coletados em {time.time() - t0:.1f}s")
             return "\n\n".join(dados_coletados)
 
         # Se não usou ferramentas, retorna o texto do Claude mesmo
+        print(f"[Stormy] Claude respondeu direto em {time.time() - t0:.1f}s")
         return "".join(b.text for b in response.content if hasattr(b, "text")).strip()
 
 
@@ -737,7 +765,6 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
 
     # 4. Visão - ScreenWatcher sob demanda
     if any(t in msg for t in VISION_TRIGGERS):
-        import time
         from screen_watcher import start as sw_start, describe, _state as sw_state
         if not sw_state.get("running"):
             sw_start()
@@ -757,6 +784,7 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
 
     # 5. Saudação ou mensagem curta - LM direto, sem classificar
     if msg in DIRECT_LOCAL or len(msg) <= 20:
+        print("[Stormy] Mensagem curta/saudação → LM Studio direto")
         r = _lm_chat(message, memory)
         if r:
             # Intercepta comandos de música
@@ -769,6 +797,12 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
             r_clean = r.replace("\x00AGUARDA_PESQUISA", "").strip()
             memory.add_assistant(r, engine="lm_studio")
             return r_clean, "lm_studio"
+        if _lm_timeout_flag:
+            try:
+                r = _claude(memory)
+                return r, "claude"
+            except Exception as e:
+                return _claude_error(e), "claude"
 
     # 6. Classificador inteligente (3 camadas)
     clf = _classify(message)
@@ -784,6 +818,7 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
     # Camada 1 - não precisa de dado externo → LM direto
     # Exceto se for factual específico - aí Claude verifica
     if not clf.get("precisa_externo") and not clf.get("factual_especifico"):
+        print("[Stormy] Camada 1 → LM Studio direto (sem dado externo)")
         r = _lm_chat(message, memory)
         if r:
             # Intercepta comandos de música
@@ -802,6 +837,13 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
             r_clean = r.replace("\x00AGUARDA_PESQUISA", "").strip()
             memory.add_assistant(r, engine="lm_studio")
             return r_clean, "lm_studio"
+        if _lm_timeout_flag:
+            print("[Stormy] Fallback → Claude")
+            try:
+                r = _claude(memory)
+                return r, "claude"
+            except Exception as e:
+                return _claude_error(e), "claude"
 
     # Factual específico sem dado externo → Claude confirma com busca rápida
     if clf.get("factual_especifico") and not clf.get("precisa_externo"):
