@@ -121,11 +121,12 @@ def main() -> None:
         from overlay import StormyOverlay
         global _overlay
         _overlay = StormyOverlay(on_send_callback=_send_message)
-        threading.Thread(target=_terminal_loop, daemon=True).start()
-        _overlay.run()  # Tkinter na thread principal
+        threading.Thread(target=_overlay.run, daemon=True).start()
+        print("[Stormy] Overlay iniciado em thread separada.")
     except Exception as e:
-        print(f"[Overlay] Erro: {e}")
-        _terminal_loop()  # fallback sem overlay
+        print(f"[Overlay] Indisponível ({e}), seguindo só com terminal.")
+
+    _terminal_loop()
 
 
 if __name__ == "__main__":
