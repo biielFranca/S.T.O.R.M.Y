@@ -15,7 +15,7 @@ load_dotenv()
 
 _anthropic_client = None
 LM_URL   = "http://localhost:1234/v1/chat/completions"
-LM_MODEL = "llama-3.2-3b-instruct"
+LM_MODEL = "qwen2.5-7b-instruct-1m"
 
 # ── Triggers diretos (sem passar pelo classificador) ──────────────────────────
 
