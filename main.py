@@ -1,0 +1,129 @@
+import threading
+from rich.console import Console
+from rich.panel import Panel
+
+import config
+from agent import chat
+from memory import ConversationMemory
+from tts_controller import init as tts_init, speak
+
+console = Console()
+memory = ConversationMemory()
+
+ENGINE_LABEL = {
+    "lm_studio": "[dim]lm[/dim]",
+    "claude":    "[dim]claude[/dim]",
+    "local":     "[dim]local[/dim]",
+}
+
+_overlay = None
+_tray    = None
+
+
+def strip_wake_word(text: str) -> str:
+    normalized = text.lower()
+    for wake in config.WAKE_WORDS:
+        if normalized.startswith(wake):
+            return text[len(wake):].strip()
+    return text
+
+
+def _send_message(message: str) -> str:
+    try:
+        response, engine = chat(message, memory)
+        label = ENGINE_LABEL.get(engine, engine)
+        console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} [dim]{label}[/dim]")
+        speak(response)
+        return response
+    except Exception as e:
+        return f"erro: {e}"
+
+
+def _toggle_overlay():
+    if _overlay and _overlay._root:
+        _overlay._root.after(0, _overlay.toggle)
+
+
+def _start_tray():
+    global _tray
+    try:
+        from tray import StormyTray
+        _tray = StormyTray(on_open=_toggle_overlay, on_quit=lambda: None)
+        _tray.start()
+    except Exception as e:
+        print(f"[Tray] Erro: {e}")
+
+
+def _start_hotkey():
+    try:
+        import keyboard
+        keyboard.add_hotkey("ctrl+up", _toggle_overlay, suppress=False)
+        print("[Stormy] Hotkey Ctrl+↑ registrada.")
+    except Exception as e:
+        print(f"[Stormy] Hotkey indisponível: {e}")
+
+
+def _terminal_loop():
+    try:
+        while True:
+            try:
+                user_input = input("\nVocê: ").strip()
+            except (KeyboardInterrupt, EOFError):
+                console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] Falou, prc!")
+                break
+
+            if not user_input:
+                continue
+
+            user_input = strip_wake_word(user_input)
+
+            if user_input.lower() in config.EXIT_WORDS:
+                console.print(f"[cyan]{config.ASSISTANT_NAME}:[/cyan] Falou, prc!")
+                break
+
+            try:
+                response, engine = chat(user_input, memory)
+                label = ENGINE_LABEL.get(engine, f"[dim]{engine}[/dim]")
+                console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} {label}")
+                speak(response)
+            except ValueError as e:
+                console.print(f"\n[red]Configuração:[/red] {e}")
+                break
+            except Exception as e:
+                console.print(f"\n[red]Erro:[/red] {e}")
+    finally:
+        memory.close()
+        import os; os._exit(0)
+
+
+def main() -> None:
+    console.print(
+        Panel.fit(
+            f"[bold cyan]{config.ASSISTANT_NAME} está pronta.[/bold cyan]\n\n"
+            "[dim]  • Perguntar qualquer coisa — ciência, história, tecnologia...[/dim]\n"
+            "[dim]  • 'abre o spotify' / 'abre o youtube'[/dim]\n"
+            "[dim]  • 'pesquisa o clima em São Paulo hoje'[/dim]\n"
+            "[dim]  • Ctrl+↑ abre o overlay em qualquer momento[/dim]\n"
+            "[dim]  • 'sair' para encerrar[/dim]",
+            border_style="cyan",
+            title="Stormy",
+        )
+    )
+
+    threading.Thread(target=_start_tray, daemon=True).start()
+    threading.Thread(target=_start_hotkey, daemon=True).start()
+    tts_init()  # carrega XTTS v2 em background
+
+    try:
+        from overlay import StormyOverlay
+        global _overlay
+        _overlay = StormyOverlay(on_send_callback=_send_message)
+        threading.Thread(target=_terminal_loop, daemon=True).start()
+        _overlay.run()  # Tkinter na thread principal
+    except Exception as e:
+        print(f"[Overlay] Erro: {e}")
+        _terminal_loop()  # fallback sem overlay
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+{
+  "open_github": {
+    "type": "url",
+    "value": "https://github.com",
+    "success_message": "Abrindo github."
+  },
+  "open_instagram": {
+    "type": "url",
+    "value": "https://www.instagram.com/",
+    "success_message": "Abrindo instagram."
+  },
+  "open_tiktok": {
+    "type": "url",
+    "value": "https://www.tiktok.com/",
+    "success_message": "Abrindo tiktok."
+  }
+}

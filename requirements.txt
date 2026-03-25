@@ -1,0 +1,13 @@
+anthropic
+python-dotenv
+requests
+rich
+spotipy
+flask
+pyautogui
+pygame-ce
+pillow
+inputs
+keyboard
+mouse
+pystray
