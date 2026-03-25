@@ -1,6 +1,12 @@
 import os
+import re
 import requests
 from dotenv import load_dotenv
+
+
+def _strip_html(text: str) -> str:
+    """Remove tags HTML (ex: <strong>, </strong>) do texto."""
+    return re.sub(r"<[^>]+>", "", text)
 
 load_dotenv()
 
@@ -35,9 +41,9 @@ def brave_search(query: str, count: int = 5) -> str:
 
         parts = []
         for r in results:
-            title = r.get("title", "")
+            title = _strip_html(r.get("title", ""))
             url = r.get("url", "")
-            description = r.get("description", "")
+            description = _strip_html(r.get("description", ""))
             if title or description:
                 parts.append(f"Fonte: {title}\nURL: {url}\nResumo: {description}")
 

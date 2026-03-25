@@ -859,20 +859,11 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
 
     # Camada 2 - precisa de dado externo
     try:
-        tem_conhecimento = clf.get("tenho_conhecimento", False)
-        complexidade     = clf.get("complexidade", "simples")
-        multiplas_fontes = clf.get("multiplas_fontes", False)
-
-        # Caso simples sem conhecimento base → Claude busca e responde direto
-        if not tem_conhecimento and complexidade == "simples":
-            r = _claude(memory, modo="buscar")
-            return r, "claude"
-
-        # Caso com conhecimento base ou complexo → Claude busca, LM sintetiza
+        print("[Stormy] Camada 2 → buscando dados externos via Claude")
         dados = _claude_buscar(memory)
 
-        if dados and tem_conhecimento:
-            # LM Studio sintetiza com personalidade
+        if dados:
+            # SEMPRE sintetiza via LM Studio na personalidade da Stormy
             r = _lm_sintetizar(message, dados, memory)
             if r:
                 memory.add_assistant(r, engine="lm_studio")
