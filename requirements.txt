@@ -8,6 +8,6 @@ pyautogui
 pygame-ce
 pillow
 inputs
-keyboard
+pynput
 mouse
 pystray

@@ -67,11 +67,14 @@ def _toggle_overlay():
 def _setup_hotkey():
     """Registra Ctrl+↑ globalmente."""
     try:
-        import keyboard
-        keyboard.add_hotkey("ctrl+up", _toggle_overlay, suppress=False)
+        from pynput.keyboard import GlobalHotKeys
+
+        hotkeys = GlobalHotKeys({"<ctrl>+<Up>": _toggle_overlay})
+        hotkeys.daemon = True
+        hotkeys.start()
         print("[Service] Hotkey Ctrl+↑ registrada.")
     except ImportError:
-        print("[Service] keyboard não instalado. Rode: pip install keyboard")
+        print("[Service] pynput não instalado. Rode: pip install pynput")
     except Exception as e:
         print(f"[Service] Erro ao registrar hotkey: {e}")
 
