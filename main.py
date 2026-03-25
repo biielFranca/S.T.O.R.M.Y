@@ -56,8 +56,11 @@ def _start_tray():
 
 def _start_hotkey():
     try:
-        import keyboard
-        keyboard.add_hotkey("ctrl+up", _toggle_overlay, suppress=False)
+        from pynput.keyboard import GlobalHotKeys
+
+        hotkeys = GlobalHotKeys({'<ctrl>+<up>': _toggle_overlay})
+        hotkeys.daemon = True
+        hotkeys.start()
         print("[Stormy] Hotkey Ctrl+↑ registrada.")
     except Exception as e:
         print(f"[Stormy] Hotkey indisponível: {e}")
