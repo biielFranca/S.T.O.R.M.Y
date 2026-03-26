@@ -67,10 +67,29 @@ def _start_hotkey():
 
 
 def _terminal_loop():
+    import sys
+    import termios
+    import tty
+
+    def _flush_stdin():
+        """Drena bytes pendentes do stdin antes de cada input."""
+        try:
+            import select
+            while select.select([sys.stdin], [], [], 0)[0]:
+                sys.stdin.read(1)
+        except Exception:
+            pass
+
     try:
         while True:
             try:
-                user_input = input("\nVocê: ").strip()
+                _flush_stdin()
+                sys.stdout.write("\nVocê: ")
+                sys.stdout.flush()
+                user_input = sys.stdin.readline()
+                if user_input is None:
+                    break
+                user_input = user_input.strip()
             except (KeyboardInterrupt, EOFError):
                 console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] Falou, prc!")
                 break
@@ -88,7 +107,6 @@ def _terminal_loop():
                 response, engine = chat(user_input, memory)
                 label = ENGINE_LABEL.get(engine, f"[dim]{engine}[/dim]")
                 console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} {label}")
-                speak(response)
             except ValueError as e:
                 console.print(f"\n[red]Configuração:[/red] {e}")
                 break
