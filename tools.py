@@ -38,6 +38,7 @@ from self_manager import (
     get_current_keys, has_pending,
 )
 from task_memory import add_custom_task, get_all_tasks
+from whatsapp import send_message as wa_send, send_to_group as wa_send_group, get_status as wa_status, get_recent_messages as wa_recent
 
 TOOL_DEFINITIONS = [
     {
@@ -305,6 +306,45 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "whatsapp",
+        "description": (
+            "Interage com o WhatsApp. "
+            "USE para: enviar mensagem, ver status da conexão, ver mensagens recentes de um chat. "
+            "O WhatsApp precisa estar conectado via whatsapp.js."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["send", "send_to_group", "status", "recent_messages"],
+                    "description": "Ação a executar",
+                },
+                "phone": {
+                    "type": "string",
+                    "description": "Número do telefone com DDI (ex: 5511999999999). Só para action=send.",
+                },
+                "group_id": {
+                    "type": "string",
+                    "description": "ID do grupo no WhatsApp. Só para action=send_to_group.",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Texto da mensagem para enviar.",
+                },
+                "chat_id": {
+                    "type": "string",
+                    "description": "ID do chat para buscar mensagens. Só para action=recent_messages.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Quantidade de mensagens recentes (padrão 20). Só para action=recent_messages.",
+                },
+            },
+            "required": ["action"],
+        },
+    },
+    {
         "name": "learn_task",
         "description": "Salva nova tarefa para uso futuro.",
         "input_schema": {
@@ -497,6 +537,21 @@ def execute_tool(name: str, inputs: dict) -> str:
             return find_public_api(inputs.get("necessidade", ""))
         case "find_hidden_api":
             return find_hidden_api(inputs.get("servico", ""))
+        case "whatsapp":
+            action = inputs.get("action", "")
+            if action == "send":
+                return wa_send(inputs.get("phone", ""), inputs.get("message", ""))
+            elif action == "send_to_group":
+                return wa_send_group(inputs.get("group_id", ""), inputs.get("message", ""))
+            elif action == "status":
+                return wa_status()
+            elif action == "recent_messages":
+                msgs = wa_recent(inputs.get("chat_id", ""), inputs.get("limit", 20))
+                if msgs and "error" in msgs[0]:
+                    return f"Erro: {msgs[0]['error']}"
+                lines = [f"{m['sender_name']}: {m['content']}" for m in msgs]
+                return "\n".join(lines) if lines else "Nenhuma mensagem encontrada."
+            return "Ação desconhecida."
         case "open_app":
             return _open_app(inputs.get("app_name", ""))
         case "open_url":
