@@ -1,5 +1,6 @@
 const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const express = require("express");
+const qrcode = require("qrcode-terminal");
 const fs = require("fs");
 const path = require("path");
 
@@ -28,12 +29,7 @@ let authenticatedNumber = null;
 
 client.on("qr", (qr) => {
   console.log("[WhatsApp] Escaneie o QR code abaixo:");
-  // Gera QR no terminal via qrcode-terminal (fallback: printa raw)
-  try {
-    require("qrcode-terminal").generate(qr, { small: true });
-  } catch {
-    console.log(qr);
-  }
+  qrcode.generate(qr, { small: true });
 });
 
 client.on("authenticated", () => {
