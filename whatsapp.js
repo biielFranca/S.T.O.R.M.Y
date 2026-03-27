@@ -59,8 +59,22 @@ client.on("disconnected", (reason) => {
 
 client.on("message", async (msg) => {
   try {
-    const chat = await msg.getChat();
-    const contact = await msg.getContact();
+    // Ignora mensagens de status do WhatsApp
+    if (msg.from === "status@broadcast") return;
+
+    let chat = null;
+    try {
+      chat = await msg.getChat();
+    } catch {
+      chat = null;
+    }
+
+    let contact = null;
+    try {
+      contact = await msg.getContact();
+    } catch {
+      contact = null;
+    }
 
     // Determina tipo da mensagem
     let messageType = "text";
@@ -94,14 +108,14 @@ client.on("message", async (msg) => {
     }
 
     const payload = {
-      chat_id: chat.id._serialized,
-      chat_name: chat.name || contact.pushname || contact.number,
-      sender_phone: contact.number,
-      sender_name: contact.pushname || contact.name || contact.number,
+      chat_id: chat?.id?._serialized || msg.from || "",
+      chat_name: chat?.name || contact?.pushname || contact?.number || msg.from || "desconhecido",
+      sender_phone: contact?.number || msg.author || msg.from || "",
+      sender_name: contact?.pushname || contact?.name || contact?.number || "desconhecido",
       message_id: msg.id.id,
       message_type: messageType,
       content: content,
-      is_group: chat.isGroup,
+      is_group: chat?.isGroup || false,
       timestamp: msg.timestamp,
     };
 
