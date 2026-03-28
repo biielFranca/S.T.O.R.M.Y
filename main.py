@@ -1,4 +1,7 @@
+import subprocess
 import threading
+from pathlib import Path
+
 from rich.console import Console
 from rich.panel import Panel
 
@@ -52,6 +55,31 @@ def _start_tray():
         _tray.start()
     except Exception as e:
         print(f"[Tray] Erro: {e}")
+
+
+def _start_whatsapp():
+    project_dir = str(Path(__file__).parent)
+
+    # Flask server (whatsapp.py)
+    try:
+        from whatsapp import start as wa_start
+        wa_start()
+    except Exception as e:
+        print(f"[WhatsApp] Servidor Python falhou: {e}")
+
+    # Node.js bridge (whatsapp.js)
+    try:
+        subprocess.Popen(
+            ["node", "whatsapp.js"],
+            cwd=project_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        print("[WhatsApp] Bridge Node.js iniciada.")
+    except FileNotFoundError:
+        print("[WhatsApp] Node.js não encontrado, bridge indisponível.")
+    except Exception as e:
+        print(f"[WhatsApp] Erro ao iniciar bridge: {e}")
 
 
 def _start_hotkey():
@@ -118,6 +146,8 @@ def _terminal_loop():
 
 
 def main() -> None:
+    _start_whatsapp()
+
     console.print(
         Panel.fit(
             f"[bold cyan]{config.ASSISTANT_NAME} está pronta.[/bold cyan]\n\n"
