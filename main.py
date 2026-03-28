@@ -89,10 +89,9 @@ def _start_whatsapp():
         time.sleep(15)
         try:
             from whatsapp import import_contacts_to_db
-            result = import_contacts_to_db()
-            print(f"[WhatsApp] {result}")
-        except Exception as e:
-            print(f"[WhatsApp] Erro ao importar contatos: {e}")
+            import_contacts_to_db()
+        except Exception:
+            pass
 
     threading.Thread(target=_delayed_import, daemon=True).start()
 
