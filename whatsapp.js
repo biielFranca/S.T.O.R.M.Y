@@ -188,6 +188,27 @@ app.post("/send_to_group", async (req, res) => {
   }
 });
 
+// Listar contatos
+app.get("/contacts", async (_req, res) => {
+  if (!clientReady) {
+    return res.status(503).json({ error: "WhatsApp não conectado" });
+  }
+
+  try {
+    const contacts = await client.getContacts();
+    const filtered = contacts
+      .filter((c) => c.id?.user && c.id?.server === "c.us")
+      .map((c) => ({
+        name: c.pushname || c.name || "",
+        number: c.id.user,
+        isMyContact: c.isMyContact || false,
+      }));
+    res.json(filtered);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Start ───────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {

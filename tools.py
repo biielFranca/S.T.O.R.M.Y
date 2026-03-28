@@ -38,7 +38,11 @@ from self_manager import (
     get_current_keys, has_pending,
 )
 from task_memory import add_custom_task, get_all_tasks
-from whatsapp import send_message as wa_send, send_to_group as wa_send_group, get_status as wa_status, get_recent_messages as wa_recent
+from whatsapp import (
+    send_message as wa_send, send_to_group as wa_send_group,
+    get_status as wa_status, get_recent_messages as wa_recent,
+    get_contacts as wa_contacts, import_contacts_to_db as wa_import_contacts,
+)
 
 TOOL_DEFINITIONS = [
     {
@@ -317,7 +321,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["send", "send_to_group", "status", "recent_messages"],
+                    "enum": ["send", "send_to_group", "status", "recent_messages", "get_contacts", "import_contacts"],
                     "description": "Ação a executar",
                 },
                 "phone": {
@@ -551,6 +555,14 @@ def execute_tool(name: str, inputs: dict) -> str:
                     return f"Erro: {msgs[0]['error']}"
                 lines = [f"{m['sender_name']}: {m['content']}" for m in msgs]
                 return "\n".join(lines) if lines else "Nenhuma mensagem encontrada."
+            elif action == "get_contacts":
+                contacts = wa_contacts()
+                if contacts and "error" in contacts[0]:
+                    return f"Erro: {contacts[0]['error']}"
+                lines = [f"{c.get('name', '?')} — {c.get('number', '?')}" for c in contacts]
+                return "\n".join(lines) if lines else "Nenhum contato encontrado."
+            elif action == "import_contacts":
+                return wa_import_contacts()
             return "Ação desconhecida."
         case "open_app":
             return _open_app(inputs.get("app_name", ""))

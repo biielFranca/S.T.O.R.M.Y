@@ -120,6 +120,49 @@ def get_status() -> str:
         return f"Erro ao checar status: {e}"
 
 
+def get_contacts() -> list[dict]:
+    try:
+        r = requests.get(f"{NODE_URL}/contacts", timeout=15)
+        if r.ok:
+            return r.json()
+        return [{"error": r.json().get("error", r.status_code)}]
+    except requests.ConnectionError:
+        return [{"error": "WhatsApp offline — o whatsapp.js não está rodando."}]
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+def import_contacts_to_db() -> str:
+    contacts = get_contacts()
+    if contacts and "error" in contacts[0]:
+        return contacts[0]["error"]
+
+    imported = 0
+    try:
+        conn = get_connection()
+        now = datetime.now().isoformat()
+        for c in contacts:
+            phone = c.get("number", "")
+            name = c.get("name", "") or phone
+            if not phone:
+                continue
+            existing = conn.execute(
+                "SELECT id FROM profiles WHERE phone = ?", (phone,)
+            ).fetchone()
+            if not existing:
+                conn.execute(
+                    """INSERT INTO profiles (name, phone, relation, created_at, updated_at)
+                       VALUES (?, ?, 'unknown', ?, ?)""",
+                    (name, phone, now, now),
+                )
+                imported += 1
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        return f"Erro ao importar: {e}"
+    return f"{imported} contatos importados pro banco."
+
+
 def get_recent_messages(chat_id: str, limit: int = 20) -> list[dict]:
     try:
         conn = get_connection()
