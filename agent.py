@@ -279,6 +279,39 @@ def _get_contacts_context() -> str:
         return ""
 
 
+def _generate_whatsapp_message(intention: str, as_me: bool) -> str:
+    """Gera o texto da mensagem WhatsApp via LM Studio."""
+    if as_me:
+        prompt = f"Gere apenas o texto de uma mensagem WhatsApp casual. Intenção: {intention}. Responda APENAS com o texto."
+        system = "Você gera mensagens de WhatsApp curtas e casuais. Responda APENAS com o texto da mensagem, sem explicações."
+    else:
+        prompt = f"Gere apenas o texto de uma mensagem WhatsApp que a Stormy enviaria. Intenção: {intention}. Responda APENAS com o texto da mensagem, sem explicações."
+        system = STORMY_SYSTEM
+
+    try:
+        r = requests.post(
+            LM_URL,
+            json={
+                "model": LM_MODEL,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                "stream": False,
+                "temperature": 0.4,
+                "max_tokens": 150,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        text = r.json()["choices"][0]["message"]["content"].strip()
+        if text:
+            return _clean_response(text)
+    except Exception as e:
+        print(f"[Stormy] _generate_whatsapp_message falhou: {e}")
+    return intention
+
+
 def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
     """LM Studio com suporte a tool calling (formato OpenAI)."""
     import json as _json
@@ -351,12 +384,9 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                 except _json.JSONDecodeError:
                     tool_args = {}
 
-                # Intercepta envio de WhatsApp para aplicar personalidade
-                if tool_name == "whatsapp" and tool_args.get("action") == "send" and tool_args.get("message"):
-                    if _as_me:
-                        tool_args["as_me"] = True
-                    else:
-                        tool_args["message"] = apply_personality(tool_args["message"], memory)
+                # Intercepta envio de WhatsApp para gerar mensagem com personalidade
+                if tool_name == "whatsapp" and tool_args.get("action") == "send":
+                    tool_args["message"] = _generate_whatsapp_message(message, _as_me)
 
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
                 result = execute_tool(tool_name, tool_args)
