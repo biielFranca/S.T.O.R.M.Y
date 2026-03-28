@@ -19,8 +19,9 @@ ENGINE_LABEL = {
     "local":     "[dim]local[/dim]",
 }
 
-_overlay = None
-_tray    = None
+_overlay    = None
+_tray       = None
+_print_lock = threading.Lock()
 
 
 def strip_wake_word(text: str) -> str:
@@ -35,7 +36,8 @@ def _send_message(message: str) -> str:
     try:
         response, engine = chat(message, memory)
         label = ENGINE_LABEL.get(engine, engine)
-        console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} [dim]{label}[/dim]")
+        with _print_lock:
+            console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} [dim]{label}[/dim]")
         speak(response)
         return response
     except Exception as e:
@@ -125,8 +127,9 @@ def _terminal_loop():
         while True:
             try:
                 _flush_stdin()
-                sys.stdout.write("\nVocê: ")
-                sys.stdout.flush()
+                with _print_lock:
+                    sys.stdout.write("\nVocê: ")
+                    sys.stdout.flush()
                 user_input = sys.stdin.readline()
                 if user_input is None:
                     break
@@ -147,12 +150,15 @@ def _terminal_loop():
             try:
                 response, engine = chat(user_input, memory)
                 label = ENGINE_LABEL.get(engine, f"[dim]{engine}[/dim]")
-                console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} {label}")
+                with _print_lock:
+                    console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} {label}")
             except ValueError as e:
-                console.print(f"\n[red]Configuração:[/red] {e}")
+                with _print_lock:
+                    console.print(f"\n[red]Configuração:[/red] {e}")
                 break
             except Exception as e:
-                console.print(f"\n[red]Erro:[/red] {e}")
+                with _print_lock:
+                    console.print(f"\n[red]Erro:[/red] {e}")
     finally:
         memory.close()
         import os; os._exit(0)
