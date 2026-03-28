@@ -289,8 +289,6 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
 
     msgs = [
         {"role": "system", "content": AGENT_SYSTEM},
-        *[{"role": m["role"], "content": m["content"]}
-          for m in memory.get()[:-1] if isinstance(m.get("content"), str)],
         {"role": "user", "content": message},
     ]
 
