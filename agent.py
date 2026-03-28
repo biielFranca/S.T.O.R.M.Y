@@ -245,7 +245,7 @@ Palmeiras=porco, São Paulo=bambi, Santos=peixe, Flamengo=urubu.
 
 WhatsApp: ao enviar mensagens, sempre use as_me=false (prefixo [STORMY]) exceto quando o usuário pedir explicitamente 'manda como se fosse eu' ou 'se passa por mim'.
 Para enviar mensagens WhatsApp, primeiro use a action find_contact para buscar o número pelo nome, depois use send com o número encontrado.
-Quando o usuário perguntar sobre mensagens recebidas, mensagens do WhatsApp, o que alguém disse ou mandou, SEMPRE use a ferramenta whatsapp com action='recent_messages' para buscar no banco. Nunca diga que não tem acesso — você tem acesso via ferramenta."""
+Quando o usuário perguntar sobre mensagens de alguém, primeiro use whatsapp action='find_chat' com o nome para obter o chat_id, depois use action='recent_messages' com esse chat_id para buscar as mensagens."""
 
     if modo == "buscar":
         base += "\n\nIMPORTANTE: Use SEMPRE a ferramenta web_search ou sports_data antes de responder. NUNCA responda sem buscar primeiro."

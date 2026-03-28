@@ -224,6 +224,20 @@ def find_contact_by_name(name: str) -> str:
         return f"Erro ao buscar contato: {e}"
 
 
+def get_chat_id_by_name(name: str) -> str | None:
+    """Busca chat_id na tabela whatsapp_messages pelo chat_name."""
+    try:
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT chat_id FROM whatsapp_messages WHERE chat_name LIKE ? LIMIT 1",
+            (f"%{name}%",),
+        ).fetchone()
+        conn.close()
+        return row["chat_id"] if row else None
+    except Exception:
+        return None
+
+
 def get_recent_messages(chat_id: str, limit: int = 20) -> list[dict]:
     try:
         conn = get_connection()

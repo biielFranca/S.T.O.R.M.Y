@@ -43,6 +43,7 @@ from whatsapp import (
     get_status as wa_status, get_recent_messages as wa_recent,
     get_contacts as wa_contacts, import_contacts_to_db as wa_import_contacts,
     find_contact_by_name as wa_find_contact,
+    get_chat_id_by_name as wa_find_chat,
 )
 
 TOOL_DEFINITIONS = [
@@ -322,7 +323,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["send", "send_to_group", "status", "recent_messages", "get_contacts", "import_contacts", "find_contact"],
+                    "enum": ["send", "send_to_group", "status", "recent_messages", "get_contacts", "import_contacts", "find_contact", "find_chat"],
                     "description": "Ação a executar",
                 },
                 "phone": {
@@ -577,6 +578,11 @@ def execute_tool(name: str, inputs: dict) -> str:
                 return wa_import_contacts()
             elif action == "find_contact":
                 return wa_find_contact(inputs.get("name", ""))
+            elif action == "find_chat":
+                chat_id = wa_find_chat(inputs.get("name", ""))
+                if chat_id:
+                    return f"chat_id encontrado: {chat_id}"
+                return "Nenhum chat encontrado com esse nome."
             return "Ação desconhecida."
         case "open_app":
             return _open_app(inputs.get("app_name", ""))
