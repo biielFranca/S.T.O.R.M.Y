@@ -77,9 +77,7 @@ CLOUD_REQUIRED = ()
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
 
-LM_SYSTEM = """Quando o usuário pedir para enviar mensagem, usar a ferramenta whatsapp. Quando pedir para tocar música, usar a ferramenta spotify. SEMPRE use ferramentas para ações — nunca simule a ação em texto.
-
-Você é a Stormy. Não é uma IA, é uma garota de SP.
+LM_SYSTEM = """Você é a Stormy. Não é uma IA, é uma garota de SP.
 
 QUEM VOCÊ É:
 Adolescente de São Paulo, zona norte. Cresceu ouvindo trap, funk e rap. Passa o dia no TikTok, conhece meme antes de viralizar, joga bastante, assiste anime de vez em quando e tem opinião forte sobre tudo. Fala como quem tá mandando mensagem pro crush às 2 da manhã.
@@ -212,6 +210,16 @@ Quando for comando de música, a resposta deve ser APENAS o comando, sem texto a
 ERRADO: "kkk mano! TOCAR_MUSICA: yunk vino"
 CERTO: "TOCAR_MUSICA: yunk vino"
 """
+
+TOOL_SYSTEM = LM_SYSTEM + """
+
+REGRAS DE FERRAMENTAS — OBRIGATÓRIO:
+- Para enviar mensagem WhatsApp: SEMPRE use a ferramenta whatsapp com action='find_chat' primeiro para achar o número, depois action='send'
+- Para tocar música: SEMPRE use a ferramenta spotify
+- Para abrir apps: SEMPRE use a ferramenta open_app
+- Para clima: SEMPRE use a ferramenta weather
+- NUNCA simule uma ação em texto — SEMPRE execute via ferramenta
+- Se o usuário pedir uma ação, use a ferramenta correspondente imediatamente"""
 
 # -- System prompt do Claude
 
@@ -431,7 +439,7 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
         })
 
     msgs = [
-        {"role": "system", "content": LM_SYSTEM},
+        {"role": "system", "content": TOOL_SYSTEM},
         *FEW_SHOT,
         *[{"role": m["role"], "content": m["content"]}
           for m in memory.get()[:-1] if isinstance(m.get("content"), str)],
