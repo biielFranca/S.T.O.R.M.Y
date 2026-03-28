@@ -338,6 +338,10 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                 return apply_personality(text, memory)
 
             # Tem tool calls - executar cada uma
+            # Detecta se o usuário quer enviar como ele mesmo
+            _msg_lower = message.lower()
+            _as_me = any(t in _msg_lower for t in ("se passando por mim", "como se fosse eu", "no meu nome"))
+
             msgs.append(assistant_msg)
             for tc in tool_calls:
                 fn = tc["function"]
@@ -346,6 +350,14 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                     tool_args = _json.loads(fn["arguments"]) if isinstance(fn["arguments"], str) else fn["arguments"]
                 except _json.JSONDecodeError:
                     tool_args = {}
+
+                # Intercepta envio de WhatsApp para aplicar personalidade
+                if tool_name == "whatsapp" and tool_args.get("action") == "send" and tool_args.get("message"):
+                    if _as_me:
+                        tool_args["as_me"] = True
+                    else:
+                        tool_args["message"] = apply_personality(tool_args["message"], memory)
+
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
                 result = execute_tool(tool_name, tool_args)
                 msgs.append({

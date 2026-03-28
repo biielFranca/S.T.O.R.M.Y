@@ -555,8 +555,6 @@ def execute_tool(name: str, inputs: dict) -> str:
             action = inputs.get("action", "")
             if action == "send":
                 msg = inputs.get("message", "")
-                if not inputs.get("as_me"):
-                    msg = f"[STORMY]: {msg}"
                 return wa_send(inputs.get("phone", ""), msg)
             elif action == "send_to_group":
                 return wa_send_group(inputs.get("group_id", ""), inputs.get("message", ""))
