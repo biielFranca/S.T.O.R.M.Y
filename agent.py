@@ -72,6 +72,12 @@ DIRECT_LOCAL = {
     "ok", "certo", "entendi", "show", "massa", "legal",
 }
 
+CLOUD_REQUIRED = (
+    "manda mensagem", "envia mensagem", "manda um oi", "manda um zap",
+    "fala pro", "fala pra", "avisa o", "avisa a",
+    "responde o", "responde a", "mensagem de", "o que disse",
+)
+
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
 
 LM_SYSTEM = """Você é a Stormy. Não é uma IA, é uma garota de SP.
@@ -783,7 +789,8 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
         return r, "local"
 
     # 5. Saudação ou mensagem curta - LM direto, sem classificar
-    if msg in DIRECT_LOCAL or len(msg) <= 20:
+    _needs_cloud = any(t in msg for t in CLOUD_REQUIRED)
+    if not _needs_cloud and (msg in DIRECT_LOCAL or len(msg) <= 20):
         print("[Stormy] Mensagem curta/saudação → LM Studio direto")
         r = _lm_chat(message, memory)
         if r:
