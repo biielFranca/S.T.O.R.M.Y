@@ -106,10 +106,6 @@ def incoming():
             "message_type": message_type,
         })
 
-    # Print no terminal
-    prefix = f"[{chat_name}] " if is_group else ""
-    print(f"[WhatsApp] {prefix}{sender_name}: {content}")
-
     return jsonify({"ok": True})
 
 
