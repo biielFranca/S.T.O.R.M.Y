@@ -259,7 +259,7 @@ def get_recent_messages(chat_id: str, limit: int = 20) -> list[dict]:
         rows = conn.execute(
             """SELECT sender_name, message_type, content, created_at
                FROM whatsapp_messages
-               WHERE chat_id = ?
+               WHERE chat_id = ? AND message_type = 'text'
                ORDER BY created_at DESC
                LIMIT ?""",
             (chat_id, limit),
