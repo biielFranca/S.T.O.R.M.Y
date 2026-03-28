@@ -409,16 +409,22 @@ def _lm_chat(message: str, memory: ConversationMemory) -> str | None:
 def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
     """LM Studio com suporte a tool calling (formato OpenAI)."""
     import json as _json
+    import copy
 
     # Converte TOOL_DEFINITIONS do formato Anthropic para OpenAI
     oai_tools = []
     for td in TOOL_DEFINITIONS:
+        schema = copy.deepcopy(td["input_schema"])
+        # Remove campos não suportados pelo formato OpenAI
+        schema.pop("additionalProperties", None)
+        for prop in schema.get("properties", {}).values():
+            prop.pop("additionalProperties", None)
         oai_tools.append({
             "type": "function",
             "function": {
                 "name": td["name"],
                 "description": td["description"],
-                "parameters": td["input_schema"],
+                "parameters": schema,
             },
         })
 
