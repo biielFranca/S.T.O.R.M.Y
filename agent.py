@@ -73,16 +73,7 @@ DIRECT_LOCAL = {
     "ok", "certo", "entendi", "show", "massa", "legal",
 }
 
-CLOUD_REQUIRED = (
-    "manda mensagem", "envia mensagem", "manda um oi", "manda um zap",
-    "fala pro", "fala pra", "avisa o", "avisa a",
-    "responde o", "responde a", "mensagem de", "o que disse",
-    "quais mensagens", "o que falou", "mensagens que recebi",
-    "me enviaram", "me mandaram", "abre a mensagem", "lê a mensagem",
-    "o que a", "o que o", "o que ela", "o que ele",
-    "leu a mensagem", "última mensagem",
-    "se passando por mim", "como se fosse eu", "fingindo ser eu", "no meu nome",
-)
+CLOUD_REQUIRED = ()
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
 
