@@ -22,6 +22,7 @@ load_dotenv()
 _anthropic_client = None
 LM_URL   = "http://localhost:1234/v1/chat/completions"
 LM_MODEL = "qwen2.5-7b-instruct-1m"
+TOOL_MODEL = "llama-xlam-2-8b-fc-r"
 
 # ── Triggers diretos (sem passar pelo classificador) ──────────────────────────
 
@@ -346,7 +347,7 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
             r = requests.post(
                 LM_URL,
                 json={
-                    "model": LM_MODEL,
+                    "model": TOOL_MODEL,
                     "messages": msgs,
                     "tools": oai_tools,
                     "stream": False,
