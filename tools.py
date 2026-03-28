@@ -42,6 +42,7 @@ from whatsapp import (
     send_message as wa_send, send_to_group as wa_send_group,
     get_status as wa_status, get_recent_messages as wa_recent,
     get_contacts as wa_contacts, import_contacts_to_db as wa_import_contacts,
+    find_contact_by_name as wa_find_contact,
 )
 
 TOOL_DEFINITIONS = [
@@ -321,7 +322,7 @@ TOOL_DEFINITIONS = [
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["send", "send_to_group", "status", "recent_messages", "get_contacts", "import_contacts"],
+                    "enum": ["send", "send_to_group", "status", "recent_messages", "get_contacts", "import_contacts", "find_contact"],
                     "description": "Ação a executar",
                 },
                 "phone": {
@@ -347,6 +348,10 @@ TOOL_DEFINITIONS = [
                 "as_me": {
                     "type": "boolean",
                     "description": "Se true, envia sem prefixo [STORMY], como se fosse o próprio usuário. Usar apenas quando o usuário pedir explicitamente para se passar por ele.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Nome do contato para buscar. Só para action=find_contact.",
                 },
             },
             "required": ["action"],
@@ -570,6 +575,8 @@ def execute_tool(name: str, inputs: dict) -> str:
                 return "\n".join(lines) if lines else "Nenhum contato encontrado."
             elif action == "import_contacts":
                 return wa_import_contacts()
+            elif action == "find_contact":
+                return wa_find_contact(inputs.get("name", ""))
             return "Ação desconhecida."
         case "open_app":
             return _open_app(inputs.get("app_name", ""))

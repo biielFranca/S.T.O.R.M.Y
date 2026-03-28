@@ -197,11 +197,10 @@ app.get("/contacts", async (_req, res) => {
   try {
     const contacts = await client.getContacts();
     const filtered = contacts
-      .filter((c) => c.id?.user && c.id?.server === "c.us")
+      .filter((c) => c.isMyContact && c.id?.user && c.id?.server === "c.us")
       .map((c) => ({
-        name: c.pushname || c.name || "",
+        name: c.pushname || c.name || c.id.user,
         number: c.id.user,
-        isMyContact: c.isMyContact || false,
       }));
     res.json(filtered);
   } catch (err) {

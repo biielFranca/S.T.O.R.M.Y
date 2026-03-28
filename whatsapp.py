@@ -163,6 +163,22 @@ def import_contacts_to_db() -> str:
     return f"{imported} contatos importados pro banco."
 
 
+def find_contact_by_name(name: str) -> str:
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT name, phone FROM profiles WHERE name LIKE ? LIMIT 5",
+            (f"%{name}%",),
+        ).fetchall()
+        conn.close()
+        if not rows:
+            return f"Nenhum contato encontrado com '{name}'."
+        lines = [f"{r['name']} — {r['phone']}" for r in rows]
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Erro ao buscar contato: {e}"
+
+
 def get_recent_messages(chat_id: str, limit: int = 20) -> list[dict]:
     try:
         conn = get_connection()
