@@ -81,6 +81,19 @@ def _start_whatsapp():
     except Exception as e:
         print(f"[WhatsApp] Erro ao iniciar bridge: {e}")
 
+    # Importa contatos após Node conectar
+    def _delayed_import():
+        import time
+        time.sleep(15)
+        try:
+            from whatsapp import import_contacts_to_db
+            result = import_contacts_to_db()
+            print(f"[WhatsApp] {result}")
+        except Exception as e:
+            print(f"[WhatsApp] Erro ao importar contatos: {e}")
+
+    threading.Thread(target=_delayed_import, daemon=True).start()
+
 
 def _start_hotkey():
     try:
