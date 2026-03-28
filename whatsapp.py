@@ -4,6 +4,7 @@ e expõe funções para o agent/tools enviar mensagens.
 """
 
 import threading
+from collections import deque
 from datetime import datetime
 
 import requests
@@ -12,6 +13,10 @@ from flask import Flask, request, jsonify
 from database import get_connection, init_db
 
 NODE_URL = "http://localhost:3001"
+
+# ── Fila de notificações ────────────────────────────────────────────────────
+
+_notification_queue = deque(maxlen=20)
 
 # ── Flask server ─────────────────────────────────────────────────────────────
 
@@ -66,11 +71,28 @@ def incoming():
     except Exception as e:
         print(f"[WhatsApp] Erro ao salvar no banco: {e}")
 
+    # Adiciona à fila de notificações
+    _notification_queue.append({
+        "sender_name": sender_name,
+        "chat_name": chat_name,
+        "is_group": bool(is_group),
+        "message_type": message_type,
+    })
+
     # Print no terminal
     prefix = f"[{chat_name}] " if is_group else ""
     print(f"[WhatsApp] {prefix}{sender_name}: {content}")
 
     return jsonify({"ok": True})
+
+
+# ── Notificações ────────────────────────────────────────────────────────────
+
+def get_pending_notifications() -> list[dict]:
+    """Retorna notificações pendentes e limpa a fila."""
+    items = list(_notification_queue)
+    _notification_queue.clear()
+    return items
 
 
 # ── Funções públicas ─────────────────────────────────────────────────────────

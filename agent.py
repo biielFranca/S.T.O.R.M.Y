@@ -11,6 +11,7 @@ import config
 from memory import ConversationMemory
 from task_memory import get_all_tasks
 from tools import TOOL_DEFINITIONS, execute_tool
+from whatsapp import get_pending_notifications
 
 load_dotenv()
 
@@ -725,7 +726,41 @@ def _claude_error(e: Exception) -> str:
 
 # ── Roteador principal ────────────────────────────────────────────────────────
 
+def _append_wa_notifications(response: str, engine: str) -> tuple[str, str]:
+    """Anexa notificações de WhatsApp pendentes ao final da resposta."""
+    # Não notificar se a resposta já é sobre WhatsApp
+    wa_keywords = ("whatsapp", "mensagem enviada", "contato", "[STORMY]")
+    if any(k in response.lower() for k in wa_keywords):
+        return response, engine
+
+    notifs = get_pending_notifications()
+    if not notifs:
+        return response, engine
+
+    # Nomes únicos, preservando ordem
+    seen = set()
+    names = []
+    for n in notifs:
+        name = n.get("sender_name", "?")
+        if name not in seen:
+            seen.add(name)
+            names.append(name)
+
+    if len(names) <= 3:
+        nomes_str = ", ".join(names)
+    else:
+        nomes_str = ", ".join(names[:3]) + f" +{len(names) - 3} mensagens"
+
+    response += f"\n\n[WhatsApp] {nomes_str} te mandaram mensagem"
+    return response, engine
+
+
 def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
+    result = _chat_inner(message, memory)
+    return _append_wa_notifications(*result)
+
+
+def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
     memory.add_user(message)
     msg = message.lower().strip()
 
