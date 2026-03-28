@@ -141,6 +141,7 @@ app.use(express.json());
 
 // Status
 app.get("/status", (_req, res) => {
+  console.log('[DEBUG] /status chamado, clientReady =', clientReady);
   res.json({
     connected: clientReady,
     number: authenticatedNumber,
