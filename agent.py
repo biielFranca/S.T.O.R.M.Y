@@ -415,6 +415,89 @@ def _lm_chat(message: str, memory: ConversationMemory) -> str | None:
     return None
 
 
+def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
+    """LM Studio com suporte a tool calling (formato OpenAI)."""
+    import json as _json
+
+    # Converte TOOL_DEFINITIONS do formato Anthropic para OpenAI
+    oai_tools = []
+    for td in TOOL_DEFINITIONS:
+        oai_tools.append({
+            "type": "function",
+            "function": {
+                "name": td["name"],
+                "description": td["description"],
+                "parameters": td["input_schema"],
+            },
+        })
+
+    msgs = [
+        {"role": "system", "content": LM_SYSTEM},
+        *FEW_SHOT,
+        *[{"role": m["role"], "content": m["content"]}
+          for m in memory.get()[:-1] if isinstance(m.get("content"), str)],
+        {"role": "user", "content": message},
+    ]
+
+    for iteration in range(5):
+        try:
+            print(f"[Stormy] LM Studio com tools (iteração {iteration + 1})...")
+            t0 = time.time()
+            r = requests.post(
+                LM_URL,
+                json={
+                    "model": LM_MODEL,
+                    "messages": msgs,
+                    "tools": oai_tools,
+                    "stream": False,
+                    "temperature": 0.3,
+                    "max_tokens": 256,
+                },
+                timeout=120,
+            )
+            r.raise_for_status()
+            elapsed = time.time() - t0
+            choice = r.json()["choices"][0]
+            assistant_msg = choice["message"]
+            print(f"[Stormy] Resposta LM Studio em {elapsed:.1f}s")
+
+            tool_calls = assistant_msg.get("tool_calls")
+            if not tool_calls:
+                # Sem tool calls - retorna resposta normal
+                text = (assistant_msg.get("content") or "").strip()
+                return _clean_response(text) if text else None
+
+            # Tem tool calls - executar cada uma
+            msgs.append(assistant_msg)
+            for tc in tool_calls:
+                fn = tc["function"]
+                tool_name = fn["name"]
+                try:
+                    tool_args = _json.loads(fn["arguments"]) if isinstance(fn["arguments"], str) else fn["arguments"]
+                except _json.JSONDecodeError:
+                    tool_args = {}
+                print(f"[Stormy] LM usando ferramenta: {tool_name}")
+                result = execute_tool(tool_name, tool_args)
+                msgs.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": str(result),
+                })
+            continue
+
+        except requests.exceptions.Timeout:
+            print("[Stormy] LM Studio com tools timeout")
+            global _lm_timeout_flag
+            _lm_timeout_flag = True
+            return None
+        except Exception as e:
+            print(f"[Stormy] Erro LM Studio com tools: {e}")
+            return None
+
+    # Max iterações atingidas - retorna última resposta
+    return None
+
+
 def _lm_sintetizar(message: str, dados: str, memory: ConversationMemory) -> str | None:
     """LM Studio recebe dados externos e sintetiza na personalidade da Stormy."""
     print("[Stormy] LM Studio sintetizando dados externos...")
@@ -874,11 +957,11 @@ def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
         except Exception as e:
             return _claude_error(e), "claude"
 
-    # Camada 1 - não precisa de dado externo → LM direto
+    # Camada 1 - não precisa de dado externo → LM com tools
     # Exceto se for factual específico - aí Claude verifica
     if not clf.get("precisa_externo") and not clf.get("factual_especifico"):
-        print("[Stormy] Camada 1 → LM Studio direto (sem dado externo)")
-        r = _lm_chat(message, memory)
+        print("[Stormy] Camada 1 → LM Studio com tools (sem dado externo)")
+        r = _lm_chat_with_tools(message, memory)
         if r:
             # Intercepta comandos de música
             music_cmd = _parse_music_command(r)
@@ -910,8 +993,8 @@ def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
             r = _claude(memory, modo="buscar")
             return r, "claude"
         except Exception as e:
-            # Fallback pro LM com aviso
-            r = _lm_chat(message, memory)
+            # Fallback pro LM com tools
+            r = _lm_chat_with_tools(message, memory)
             if r:
                 memory.add_assistant(r, engine="lm_studio")
                 return r, "lm_studio"
