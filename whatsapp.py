@@ -148,3 +148,10 @@ def start():
     )
     t.start()
     print("[WhatsApp] Servidor Flask rodando na porta 5000.")
+
+
+if __name__ == "__main__":
+    start()
+    import time
+    while True:
+        time.sleep(1)
