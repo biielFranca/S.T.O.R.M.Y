@@ -813,7 +813,15 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
             except Exception as e:
                 return _claude_error(e), "claude"
 
-    # 6. Classificador inteligente (3 camadas)
+    # 6. CLOUD_REQUIRED — vai direto pro Claude com ferramentas
+    if any(t in msg for t in CLOUD_REQUIRED):
+        try:
+            r = _claude(memory)
+            return r, "claude"
+        except Exception as e:
+            return _claude_error(e), "claude"
+
+    # 7. Classificador inteligente (3 camadas)
     clf = _classify(message)
 
     # Spotify complexo - vai direto pro Claude com ferramentas
