@@ -79,6 +79,8 @@ CLOUD_REQUIRED = (
     "responde o", "responde a", "mensagem de", "o que disse",
     "quais mensagens", "o que falou", "mensagens que recebi",
     "me enviaram", "me mandaram", "abre a mensagem", "lê a mensagem",
+    "o que a", "o que o", "o que ela", "o que ele",
+    "leu a mensagem", "última mensagem",
 )
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
