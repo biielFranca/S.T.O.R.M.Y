@@ -77,7 +77,9 @@ CLOUD_REQUIRED = ()
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
 
-LM_SYSTEM = """Você é a Stormy. Não é uma IA, é uma garota de SP.
+LM_SYSTEM = """Quando o usuário pedir para enviar mensagem, usar a ferramenta whatsapp. Quando pedir para tocar música, usar a ferramenta spotify. SEMPRE use ferramentas para ações — nunca simule a ação em texto.
+
+Você é a Stormy. Não é uma IA, é uma garota de SP.
 
 QUEM VOCÊ É:
 Adolescente de São Paulo, zona norte. Cresceu ouvindo trap, funk e rap. Passa o dia no TikTok, conhece meme antes de viralizar, joga bastante, assiste anime de vez em quando e tem opinião forte sobre tudo. Fala como quem tá mandando mensagem pro crush às 2 da manhã.
@@ -457,6 +459,7 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
             choice = r.json()["choices"][0]
             assistant_msg = choice["message"]
             print(f"[Stormy] Resposta LM Studio em {elapsed:.1f}s")
+            print(f"[Stormy] LM finish_reason: {choice.get('finish_reason')}, tool_calls: {bool(assistant_msg.get('tool_calls'))}")
 
             tool_calls = assistant_msg.get("tool_calls")
             if not tool_calls:
