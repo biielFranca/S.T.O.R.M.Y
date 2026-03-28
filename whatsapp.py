@@ -71,13 +71,40 @@ def incoming():
     except Exception as e:
         print(f"[WhatsApp] Erro ao salvar no banco: {e}")
 
-    # Adiciona à fila de notificações
-    _notification_queue.append({
-        "sender_name": sender_name,
-        "chat_name": chat_name,
-        "is_group": bool(is_group),
-        "message_type": message_type,
-    })
+    # Adiciona à fila de notificações (com filtro)
+    _GRUPO_SPAM = (
+        "promoç", "oferta", "cupom", "tech", "news", "notícia",
+        "esporte", "lance", "uol", "g1", "tnt", "pack", "figurinha", "meme",
+    )
+    _should_notify = True
+    _is_only_numbers = sender_name.strip().isdigit()
+
+    if _is_only_numbers:
+        _should_notify = False
+    elif is_group:
+        chat_lower = chat_name.lower()
+        if any(spam in chat_lower for spam in _GRUPO_SPAM):
+            _should_notify = False
+        else:
+            # Só notifica se o sender está nos profiles (contato conhecido)
+            try:
+                conn2 = get_connection()
+                known = conn2.execute(
+                    "SELECT id FROM profiles WHERE phone = ? LIMIT 1",
+                    (sender_phone,),
+                ).fetchone()
+                conn2.close()
+                _should_notify = known is not None
+            except Exception:
+                _should_notify = False
+
+    if _should_notify:
+        _notification_queue.append({
+            "sender_name": sender_name,
+            "chat_name": chat_name,
+            "is_group": bool(is_group),
+            "message_type": message_type,
+        })
 
     # Print no terminal
     prefix = f"[{chat_name}] " if is_group else ""

@@ -77,6 +77,8 @@ CLOUD_REQUIRED = (
     "manda mensagem", "envia mensagem", "manda um oi", "manda um zap",
     "fala pro", "fala pra", "avisa o", "avisa a",
     "responde o", "responde a", "mensagem de", "o que disse",
+    "quais mensagens", "o que falou", "mensagens que recebi",
+    "me enviaram", "me mandaram", "abre a mensagem", "lê a mensagem",
 )
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
