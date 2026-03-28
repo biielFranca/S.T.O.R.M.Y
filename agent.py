@@ -265,6 +265,20 @@ def _lm_chat(message: str, memory: ConversationMemory) -> str | None:
     return None
 
 
+def _get_contacts_context() -> str:
+    try:
+        from database import get_connection
+        conn = get_connection()
+        rows = conn.execute("SELECT name, phone FROM profiles WHERE phone IS NOT NULL LIMIT 50").fetchall()
+        conn.close()
+        if not rows:
+            return ""
+        contacts = ", ".join(f"{r['name']} ({r['phone']})" for r in rows)
+        return f"\n\nContatos disponíveis: {contacts}"
+    except:
+        return ""
+
+
 def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
     """LM Studio com suporte a tool calling (formato OpenAI)."""
     import json as _json
@@ -288,7 +302,7 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
         })
 
     msgs = [
-        {"role": "system", "content": AGENT_SYSTEM},
+        {"role": "system", "content": AGENT_SYSTEM + _get_contacts_context()},
         {"role": "user", "content": message},
     ]
 
