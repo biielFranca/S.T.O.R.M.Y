@@ -344,6 +344,10 @@ TOOL_DEFINITIONS = [
                     "type": "integer",
                     "description": "Quantidade de mensagens recentes (padrão 20). Só para action=recent_messages.",
                 },
+                "as_me": {
+                    "type": "boolean",
+                    "description": "Se true, envia sem prefixo [STORMY], como se fosse o próprio usuário. Usar apenas quando o usuário pedir explicitamente para se passar por ele.",
+                },
             },
             "required": ["action"],
         },
@@ -544,7 +548,10 @@ def execute_tool(name: str, inputs: dict) -> str:
         case "whatsapp":
             action = inputs.get("action", "")
             if action == "send":
-                return wa_send(inputs.get("phone", ""), inputs.get("message", ""))
+                msg = inputs.get("message", "")
+                if not inputs.get("as_me"):
+                    msg = f"[STORMY]: {msg}"
+                return wa_send(inputs.get("phone", ""), msg)
             elif action == "send_to_group":
                 return wa_send_group(inputs.get("group_id", ""), inputs.get("message", ""))
             elif action == "status":
