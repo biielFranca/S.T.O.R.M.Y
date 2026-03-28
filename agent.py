@@ -487,6 +487,13 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
             global _lm_timeout_flag
             _lm_timeout_flag = True
             return None
+        except requests.exceptions.HTTPError as e:
+            print(f"[Stormy] Erro LM Studio com tools: {e}")
+            try:
+                print(f"[Stormy] Response body: {e.response.text}")
+            except:
+                pass
+            return None
         except Exception as e:
             print(f"[Stormy] Erro LM Studio com tools: {e}")
             return None
