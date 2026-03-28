@@ -199,7 +199,7 @@ app.get("/contacts", async (_req, res) => {
     const filtered = contacts
       .filter((c) => c.isMyContact && c.id?.user && c.id?.server === "c.us")
       .map((c) => ({
-        name: c.pushname || c.name || c.id.user,
+        name: c.name || c.pushname || c.id.user,
         number: c.id.user,
       }));
     res.json(filtered);
