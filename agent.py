@@ -81,6 +81,7 @@ CLOUD_REQUIRED = (
     "me enviaram", "me mandaram", "abre a mensagem", "lê a mensagem",
     "o que a", "o que o", "o que ela", "o que ele",
     "leu a mensagem", "última mensagem",
+    "se passando por mim", "como se fosse eu", "fingindo ser eu", "no meu nome",
 )
 
 # ── Personalidade da Stormy (LM Studio) ──────────────────────────────────────
