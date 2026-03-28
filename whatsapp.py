@@ -228,12 +228,27 @@ def get_chat_id_by_name(name: str) -> str | None:
     """Busca chat_id na tabela whatsapp_messages pelo chat_name."""
     try:
         conn = get_connection()
+        # Tenta nome completo primeiro
         row = conn.execute(
             "SELECT chat_id FROM whatsapp_messages WHERE chat_name LIKE ? LIMIT 1",
             (f"%{name}%",),
         ).fetchone()
+        if row:
+            conn.close()
+            return row["chat_id"]
+        # Tenta cada palavra separadamente
+        for word in name.split():
+            if len(word) < 2:
+                continue
+            row = conn.execute(
+                "SELECT chat_id FROM whatsapp_messages WHERE chat_name LIKE ? LIMIT 1",
+                (f"%{word}%",),
+            ).fetchone()
+            if row:
+                conn.close()
+                return row["chat_id"]
         conn.close()
-        return row["chat_id"] if row else None
+        return None
     except Exception:
         return None
 
