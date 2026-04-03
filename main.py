@@ -97,10 +97,14 @@ def _start_whatsapp():
                 resp = _req.get("http://localhost:3001/contacts", timeout=15)
                 if resp.ok:
                     contacts = resp.json()
+                    now = __import__("datetime").datetime.now().isoformat()
+
                     conn = get_connection()
                     conn.execute("DELETE FROM profiles")
                     conn.commit()
-                    now = __import__("datetime").datetime.now().isoformat()
+                    conn.close()
+
+                    conn = get_connection()
                     count = 0
                     for c in contacts:
                         phone = c.get("number", "")
@@ -108,8 +112,9 @@ def _start_whatsapp():
                         if not phone:
                             continue
                         conn.execute(
-                            """INSERT INTO profiles (name, phone, relation, created_at, updated_at)
-                               VALUES (?, ?, 'unknown', ?, ?)""",
+                            """INSERT OR REPLACE INTO profiles
+                               (name, phone, created_at, updated_at)
+                               VALUES (?, ?, ?, ?)""",
                             (name, phone, now, now),
                         )
                         count += 1
