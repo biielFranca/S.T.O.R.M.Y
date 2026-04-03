@@ -207,11 +207,16 @@ def import_contacts_to_db() -> str:
     except Exception as e:
         return f"Erro ao importar: {e}"
     normalized = normalize_chat_names()
-    return f"{imported} contatos importados pro banco. {normalized} chat_names normalizados."
+    return f"{imported} contatos importados pro banco. {normalized}"
 
 
-def normalize_chat_names() -> int:
-    """Atualiza chat_name de mensagens que contêm o phone para o name do profile."""
+def normalize_chat_names() -> str:
+    """Atualiza chat_name de mensagens que contêm o phone para o name do profile.
+
+    Para cada profile, gera variações do número (completo, sem código do país,
+    sem código do país+DDD) e busca mensagens cujo chat_name contém qualquer
+    uma dessas variações — ignorando formatação (+, espaços, hífens, parênteses).
+    """
     updated = 0
     try:
         conn = get_connection()
@@ -221,18 +226,30 @@ def normalize_chat_names() -> int:
         for p in profiles:
             name = p["name"]
             phone = p["phone"]
-            # Remove formatação do phone para comparar
+            # Remove toda formatação do phone
             phone_clean = re.sub(r"[+\s\-()]", "", phone)
-            if not phone_clean:
+            if not phone_clean or len(phone_clean) < 4:
                 continue
-            # Busca mensagens cujo chat_name contém o phone (limpo)
+            # Gera variações: número completo, sem código do país (55), sem 55+DDD
+            variations = {phone_clean}
+            if phone_clean.startswith("55") and len(phone_clean) > 4:
+                without_country = phone_clean[2:]  # sem código do país
+                variations.add(without_country)
+                if len(without_country) > 2:
+                    without_ddd = without_country[2:]  # sem DDD
+                    variations.add(without_ddd)
+            # Busca mensagens cujo chat_name contém alguma variação do número
+            like_clauses = " OR ".join(
+                "chat_name LIKE ?" for _ in variations
+            )
+            params = [f"%{v}%" for v in variations]
             rows = conn.execute(
-                "SELECT rowid, chat_name FROM whatsapp_messages WHERE chat_name LIKE ?",
-                (f"%{phone_clean}%",),
+                f"SELECT rowid, chat_name FROM whatsapp_messages WHERE {like_clauses}",
+                params,
             ).fetchall()
             for row in rows:
                 chat_clean = re.sub(r"[+\s\-()]", "", row["chat_name"])
-                if phone_clean in chat_clean:
+                if any(v in chat_clean for v in variations):
                     conn.execute(
                         "UPDATE whatsapp_messages SET chat_name = ? WHERE rowid = ?",
                         (name, row["rowid"]),
@@ -242,7 +259,7 @@ def normalize_chat_names() -> int:
         conn.close()
     except Exception as e:
         print(f"[WhatsApp] Erro ao normalizar chat_names: {e}")
-    return updated
+    return f"{updated} chat_names normalizados."
 
 
 def find_contact_by_name(name: str) -> str:
