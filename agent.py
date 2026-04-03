@@ -340,6 +340,8 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
         {"role": "user", "content": message},
     ]
 
+    _wa_sent = False
+
     for iteration in range(5):
         try:
             print(f"[Stormy] LM Studio com tools (iteração {iteration + 1})...")
@@ -365,7 +367,8 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
 
             tool_calls = assistant_msg.get("tool_calls")
             if not tool_calls:
-                # Sem tool calls - passa por personalidade antes de retornar
+                if _wa_sent:
+                    return "mensagem enviada prc"
                 text = (assistant_msg.get("content") or "").strip()
                 if not text:
                     return None
@@ -380,6 +383,9 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                     tool_args = _json.loads(fn["arguments"]) if isinstance(fn["arguments"], str) else fn["arguments"]
                 except _json.JSONDecodeError:
                     tool_args = {}
+
+                if tool_name == "whatsapp" and tool_args.get("action") == "send":
+                    _wa_sent = True
 
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
                 result = execute_tool(tool_name, tool_args)
