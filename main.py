@@ -99,6 +99,7 @@ def _start_whatsapp():
                     contacts = resp.json()
                     conn = get_connection()
                     conn.execute("DELETE FROM profiles")
+                    conn.commit()
                     now = __import__("datetime").datetime.now().isoformat()
                     count = 0
                     for c in contacts:
