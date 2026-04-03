@@ -211,11 +211,10 @@ def import_contacts_to_db() -> str:
 
 
 def normalize_chat_names() -> str:
-    """Atualiza chat_name de mensagens que contêm o phone para o name do profile.
+    """Atualiza chat_name de mensagens cujo nome é um número de telefone.
 
-    Para cada profile, gera variações do número (completo, sem código do país,
-    sem código do país+DDD) e busca mensagens cujo chat_name contém qualquer
-    uma dessas variações — ignorando formatação (+, espaços, hífens, parênteses).
+    Para cada profile, extrai apenas dígitos do phone e compara com os dígitos
+    do chat_name de cada mensagem (completo, sem código do país, sem país+DDD).
     """
     updated = 0
     try:
@@ -223,38 +222,43 @@ def normalize_chat_names() -> str:
         profiles = conn.execute(
             "SELECT name, phone FROM profiles WHERE phone IS NOT NULL AND phone != ''"
         ).fetchall()
+        # Busca chat_names distintos que parecem ser números (contêm dígitos)
+        chats = conn.execute(
+            "SELECT DISTINCT chat_name FROM whatsapp_messages WHERE chat_name != ''"
+        ).fetchall()
+        # Pré-computa dígitos de cada chat_name
+        chat_map = {}
+        for c in chats:
+            cn = c["chat_name"]
+            digits = re.sub(r"\D", "", cn)
+            if len(digits) >= 4:
+                chat_map[cn] = digits
         for p in profiles:
-            name = p["name"]
-            phone = p["phone"]
-            # Remove toda formatação do phone
-            phone_clean = re.sub(r"[+\s\-()]", "", phone)
-            if not phone_clean or len(phone_clean) < 4:
+            profile_name = p["name"]
+            phone_digits = re.sub(r"\D", "", p["phone"])
+            if len(phone_digits) < 4:
                 continue
-            # Gera variações: número completo, sem código do país (55), sem 55+DDD
-            variations = {phone_clean}
-            if phone_clean.startswith("55") and len(phone_clean) > 4:
-                without_country = phone_clean[2:]  # sem código do país
-                variations.add(without_country)
-                if len(without_country) > 2:
-                    without_ddd = without_country[2:]  # sem DDD
-                    variations.add(without_ddd)
-            # Busca mensagens cujo chat_name contém alguma variação do número
-            like_clauses = " OR ".join(
-                "chat_name LIKE ?" for _ in variations
-            )
-            params = [f"%{v}%" for v in variations]
-            rows = conn.execute(
-                f"SELECT rowid, chat_name FROM whatsapp_messages WHERE {like_clauses}",
-                params,
-            ).fetchall()
-            for row in rows:
-                chat_clean = re.sub(r"[+\s\-()]", "", row["chat_name"])
-                if any(v in chat_clean for v in variations):
-                    conn.execute(
-                        "UPDATE whatsapp_messages SET chat_name = ? WHERE rowid = ?",
-                        (name, row["rowid"]),
-                    )
-                    updated += 1
+            # Variações do phone: completo, sem país (2 dígitos), sem país+DDD (4 dígitos)
+            phone_variations = {phone_digits}
+            if len(phone_digits) > 4:
+                phone_variations.add(phone_digits[2:])   # sem código do país
+            if len(phone_digits) > 6:
+                phone_variations.add(phone_digits[4:])   # sem país + DDD
+            for chat_name_original, chat_digits in list(chat_map.items()):
+                # Variações do chat_name: completo, sem país, sem país+DDD
+                chat_variations = {chat_digits}
+                if len(chat_digits) > 4:
+                    chat_variations.add(chat_digits[2:])
+                if len(chat_digits) > 6:
+                    chat_variations.add(chat_digits[4:])
+                # Se qualquer variação do phone bater com qualquer variação do chat
+                if phone_variations & chat_variations:
+                    count = conn.execute(
+                        "UPDATE whatsapp_messages SET chat_name = ? WHERE chat_name = ?",
+                        (profile_name, chat_name_original),
+                    ).rowcount
+                    updated += count
+                    del chat_map[chat_name_original]
         conn.commit()
         conn.close()
     except Exception as e:
