@@ -225,7 +225,7 @@ def find_contact_by_name(name: str) -> str:
 
 
 def get_chat_id_by_name(name: str) -> str | None:
-    """Busca chat_id na tabela whatsapp_messages pelo chat_name."""
+    """Busca chat_id na tabela whatsapp_messages pelo chat_name ou pelo phone via profiles."""
     try:
         conn = get_connection()
         # Tenta nome completo primeiro
@@ -243,6 +243,20 @@ def get_chat_id_by_name(name: str) -> str | None:
             row = conn.execute(
                 "SELECT chat_id FROM whatsapp_messages WHERE chat_name LIKE ? LIMIT 1",
                 (f"%{word}%",),
+            ).fetchone()
+            if row:
+                conn.close()
+                return row["chat_id"]
+        # Busca phone na tabela profiles pelo nome
+        profile = conn.execute(
+            "SELECT phone FROM profiles WHERE name LIKE ? LIMIT 1",
+            (f"%{name}%",),
+        ).fetchone()
+        if profile and profile["phone"]:
+            phone = profile["phone"]
+            row = conn.execute(
+                "SELECT chat_id FROM whatsapp_messages WHERE chat_id LIKE ? OR chat_name LIKE ? LIMIT 1",
+                (f"%{phone}%", f"%{phone}%"),
             ).fetchone()
             if row:
                 conn.close()
