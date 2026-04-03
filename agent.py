@@ -22,7 +22,11 @@ load_dotenv()
 _anthropic_client = None
 LM_URL   = "http://localhost:1234/v1/chat/completions"
 LM_MODEL = "qwen2.5-7b-instruct-1m"
-TOOL_MODEL = "llama-xlam-2-8b-fc-r"
+# TOOL_MODEL — modelo especializado em function calling (xLAM-2-8b-fc-r)
+# Ativar quando tiver RAM suficiente para rodar junto com LM_MODEL
+# TOOL_MODEL = "llama-xlam-2-8b-fc-r"
+# Por enquanto usa LM_MODEL para tool calling
+TOOL_MODEL = LM_MODEL
 
 # ── Triggers diretos (sem passar pelo classificador) ──────────────────────────
 
