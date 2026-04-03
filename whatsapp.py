@@ -3,6 +3,7 @@ WhatsApp bridge — recebe mensagens do whatsapp.js (Node.js)
 e expõe funções para o agent/tools enviar mensagens.
 """
 
+import re
 import threading
 from collections import deque
 from datetime import datetime
@@ -205,7 +206,43 @@ def import_contacts_to_db() -> str:
         conn.close()
     except Exception as e:
         return f"Erro ao importar: {e}"
-    return f"{imported} contatos importados pro banco."
+    normalized = normalize_chat_names()
+    return f"{imported} contatos importados pro banco. {normalized} chat_names normalizados."
+
+
+def normalize_chat_names() -> int:
+    """Atualiza chat_name de mensagens que contêm o phone para o name do profile."""
+    updated = 0
+    try:
+        conn = get_connection()
+        profiles = conn.execute(
+            "SELECT name, phone FROM profiles WHERE phone IS NOT NULL AND phone != ''"
+        ).fetchall()
+        for p in profiles:
+            name = p["name"]
+            phone = p["phone"]
+            # Remove formatação do phone para comparar
+            phone_clean = re.sub(r"[+\s\-()]", "", phone)
+            if not phone_clean:
+                continue
+            # Busca mensagens cujo chat_name contém o phone (limpo)
+            rows = conn.execute(
+                "SELECT rowid, chat_name FROM whatsapp_messages WHERE chat_name LIKE ?",
+                (f"%{phone_clean}%",),
+            ).fetchall()
+            for row in rows:
+                chat_clean = re.sub(r"[+\s\-()]", "", row["chat_name"])
+                if phone_clean in chat_clean:
+                    conn.execute(
+                        "UPDATE whatsapp_messages SET chat_name = ? WHERE rowid = ?",
+                        (name, row["rowid"]),
+                    )
+                    updated += 1
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[WhatsApp] Erro ao normalizar chat_names: {e}")
+    return updated
 
 
 def find_contact_by_name(name: str) -> str:
