@@ -88,8 +88,39 @@ def _start_whatsapp():
         import time
         time.sleep(15)
         try:
-            from whatsapp import import_contacts_to_db
-            import_contacts_to_db()
+            from whatsapp import import_contacts_to_db, normalize_chat_names
+            from database import get_connection
+            import requests as _req
+
+            # Deleta profiles antigos e reimporta do Node
+            try:
+                resp = _req.get("http://localhost:3001/contacts", timeout=15)
+                if resp.ok:
+                    contacts = resp.json()
+                    conn = get_connection()
+                    conn.execute("DELETE FROM profiles")
+                    now = __import__("datetime").datetime.now().isoformat()
+                    count = 0
+                    for c in contacts:
+                        phone = c.get("number", "")
+                        name = c.get("name", "") or phone
+                        if not phone:
+                            continue
+                        conn.execute(
+                            """INSERT INTO profiles (name, phone, relation, created_at, updated_at)
+                               VALUES (?, ?, 'unknown', ?, ?)""",
+                            (name, phone, now, now),
+                        )
+                        count += 1
+                    conn.commit()
+                    conn.close()
+                    print(f"[WhatsApp] Contatos atualizados: {count} contatos")
+            except Exception as e:
+                print(f"[WhatsApp] Erro ao atualizar contatos: {e}")
+                # Fallback: importa normalmente
+                import_contacts_to_db()
+
+            normalize_chat_names()
         except Exception:
             pass
 

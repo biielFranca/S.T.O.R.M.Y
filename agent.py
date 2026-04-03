@@ -274,14 +274,30 @@ def _get_contacts_context() -> str:
     try:
         from database import get_connection
         conn = get_connection()
-        rows = conn.execute("SELECT name, phone FROM profiles WHERE phone IS NOT NULL LIMIT 50").fetchall()
+        rows = conn.execute("SELECT name, phone FROM profiles WHERE phone IS NOT NULL LIMIT 100").fetchall()
         conn.close()
         if not rows:
             return ""
-        contacts = ", ".join(f"{r['name']} ({r['phone']})" for r in rows)
-        return f"\n\nContatos disponíveis: {contacts}"
+        lines = [f"- Nome: {r['name']} | Número: {r['phone']}" for r in rows]
+        return "\n\nContatos disponíveis:\n" + "\n".join(lines)
     except:
         return ""
+
+
+def _resolve_contact_name(phone: str) -> str:
+    """Busca o nome do contato na tabela profiles pelo phone."""
+    try:
+        from database import get_connection
+        conn = get_connection()
+        row = conn.execute(
+            "SELECT name FROM profiles WHERE phone = ? LIMIT 1", (phone,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return row["name"]
+    except:
+        pass
+    return phone
 
 
 def _generate_whatsapp_message(intention: str, as_me: bool) -> str:
@@ -400,21 +416,14 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
 
                 # Confirmação antes de enviar WhatsApp
                 if tool_name == "whatsapp" and tool_args.get("action") == "send":
-                    contact = tool_args.get("phone", "?")
+                    phone = tool_args.get("phone", "?")
+                    contact_name = _resolve_contact_name(phone)
                     msg_text = tool_args.get("message", "?")
-                    _pending_wa_send = {
-                        "tool_call": tc,
-                        "tool_args": tool_args,
-                        "contact": contact,
-                        "message": msg_text,
-                        "msgs_snapshot": list(msgs),
-                        "send_log": list(_wa_send_log),
-                    }
-                    memory.add_assistant(
-                        f"vou mandar '{msg_text}' pro {contact}, confirma? (sim/não)",
-                        engine="lm_studio",
-                    )
-                    return f"vou mandar '{msg_text}' pro {contact}, confirma? (sim/não)"
+                    confirm_msg = f"vou mandar '{msg_text}' pro {contact_name}, confirma? (sim/não)"
+                    # Guarda o phone real no marcador interno para usar na execução
+                    internal_msg = f"vou mandar '{msg_text}' pro {contact_name} [phone:{phone}], confirma? (sim/não)"
+                    memory.add_assistant(internal_msg, engine="lm_studio")
+                    return confirm_msg
 
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
                 result = execute_tool(tool_name, tool_args)
@@ -787,14 +796,19 @@ def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
                 memory.add_assistant(r, engine="lm_studio")
                 return r, "lm_studio"
             if msg in CONFIRMAR or len(msg) <= 5:
-                # Extrai contato e mensagem do texto de confirmação
                 import re as _re
-                m = _re.search(r"vou mandar '(.+?)' pro (.+?), confirma", last_content)
+                # Extrai mensagem, nome e phone do marcador interno
+                m = _re.search(r"vou mandar '(.+?)' pro (.+?) \[phone:(.+?)\], confirma", last_content)
+                if not m:
+                    # Fallback: formato antigo sem [phone:]
+                    m = _re.search(r"vou mandar '(.+?)' pro (.+?), confirma", last_content)
                 if m:
-                    wa_msg, wa_contact = m.group(1), m.group(2)
-                    result = execute_tool("whatsapp", {"action": "send", "phone": wa_contact, "message": wa_msg})
+                    wa_msg = m.group(1)
+                    wa_contact_name = m.group(2)
+                    wa_phone = m.group(3) if m.lastindex >= 3 else wa_contact_name
+                    execute_tool("whatsapp", {"action": "send", "phone": wa_phone, "message": wa_msg})
                     memory.add_assistant(
-                        f"enviei mensagem para {wa_contact}: {wa_msg}",
+                        f"enviei mensagem para {wa_contact_name}: {wa_msg}",
                         engine="lm_studio",
                     )
                     r = "mensagem enviada prc"
