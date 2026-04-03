@@ -341,10 +341,14 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
 
     msgs = [
         {"role": "system", "content": AGENT_SYSTEM + _get_contacts_context()},
+        *[{"role": m["role"], "content": m["content"]}
+          for m in memory.get()[:-1] if isinstance(m.get("content"), str)],
         {"role": "user", "content": message},
     ]
 
     _wa_sent = False
+    _wa_send_log = []
+    _pending_wa_send = None  # aguarda confirmação do usuário
 
     for iteration in range(5):
         try:
@@ -372,6 +376,12 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
             tool_calls = assistant_msg.get("tool_calls")
             if not tool_calls:
                 if _wa_sent:
+                    # Salvar na memória o que foi enviado
+                    for log in _wa_send_log:
+                        memory.add_assistant(
+                            f"enviei mensagem para {log['contact']}: {log['message']}",
+                            engine="lm_studio",
+                        )
                     return "mensagem enviada prc"
                 text = (assistant_msg.get("content") or "").strip()
                 if not text:
@@ -388,11 +398,34 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                 except _json.JSONDecodeError:
                     tool_args = {}
 
+                # Confirmação antes de enviar WhatsApp
                 if tool_name == "whatsapp" and tool_args.get("action") == "send":
-                    _wa_sent = True
+                    contact = tool_args.get("phone", "?")
+                    msg_text = tool_args.get("message", "?")
+                    _pending_wa_send = {
+                        "tool_call": tc,
+                        "tool_args": tool_args,
+                        "contact": contact,
+                        "message": msg_text,
+                        "msgs_snapshot": list(msgs),
+                        "send_log": list(_wa_send_log),
+                    }
+                    memory.add_assistant(
+                        f"vou mandar '{msg_text}' pro {contact}, confirma? (sim/não)",
+                        engine="lm_studio",
+                    )
+                    return f"vou mandar '{msg_text}' pro {contact}, confirma? (sim/não)"
 
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
                 result = execute_tool(tool_name, tool_args)
+
+                if tool_name == "whatsapp" and tool_args.get("action") == "send":
+                    _wa_sent = True
+                    _wa_send_log.append({
+                        "contact": tool_args.get("phone", "?"),
+                        "message": tool_args.get("message", "?"),
+                    })
+
                 msgs.append({
                     "role": "tool",
                     "tool_call_id": tc["id"],
@@ -740,12 +773,33 @@ def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
     memory.add_user(message)
     msg = message.lower().strip()
 
-    # 0. Verifica se LM estava aguardando confirmação de pesquisa
-    CONFIRMAR = {"sim", "pode", "vai lá", "vai la", "claro", "bora", "pesquisa", "busca", "ok", "s", "yes"}
+    # 0. Verifica confirmações pendentes
+    CONFIRMAR = {"sim", "pode", "vai lá", "vai la", "claro", "bora", "pesquisa", "busca", "ok", "s", "yes", "manda", "envia"}
+    NEGAR = {"não", "nao", "n", "no", "cancela", "para", "nope"}
     prev_msgs = memory.get()
     if len(prev_msgs) >= 2:
         last_assistant = prev_msgs[-2]
         last_content = last_assistant.get("content", "")
+        # 0a. Confirmação de envio de WhatsApp
+        if isinstance(last_content, str) and "confirma? (sim/não)" in last_content:
+            if msg in NEGAR:
+                r = "beleza, cancelei o envio"
+                memory.add_assistant(r, engine="lm_studio")
+                return r, "lm_studio"
+            if msg in CONFIRMAR or len(msg) <= 5:
+                # Extrai contato e mensagem do texto de confirmação
+                import re as _re
+                m = _re.search(r"vou mandar '(.+?)' pro (.+?), confirma", last_content)
+                if m:
+                    wa_msg, wa_contact = m.group(1), m.group(2)
+                    result = execute_tool("whatsapp", {"action": "send", "phone": wa_contact, "message": wa_msg})
+                    memory.add_assistant(
+                        f"enviei mensagem para {wa_contact}: {wa_msg}",
+                        engine="lm_studio",
+                    )
+                    r = "mensagem enviada prc"
+                    return r, "lm_studio"
+        # 0b. Confirmação de pesquisa
         if isinstance(last_content, str) and "\x00AGUARDA_PESQUISA" in last_content:
             if msg in CONFIRMAR or len(msg) <= 5:
                 # Usuário confirmou - vai pro Claude buscar
