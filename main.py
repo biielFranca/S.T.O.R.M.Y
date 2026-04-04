@@ -223,6 +223,7 @@ def _terminal_loop():
                 label = ENGINE_LABEL.get(engine, f"[dim]{engine}[/dim]")
                 with _print_lock:
                     console.print(f"\n[cyan]{config.ASSISTANT_NAME}:[/cyan] {response} {label}")
+                speak(response)
             except ValueError as e:
                 with _print_lock:
                     console.print(f"\n[red]Configuração:[/red] {e}")
