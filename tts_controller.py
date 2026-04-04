@@ -31,10 +31,17 @@ def _normalize_text(text: str) -> str:
     text = re.sub(r'\b(kkk+|hauahau+|huehu+|rs)\b', '', text, flags=re.IGNORECASE)
     # Expande abreviações
     abbr = {
-        'tbm': 'também', 'mto': 'muito', 'pq': 'porque',
-        'hj': 'hoje', 'prc': 'parceiro', 'cz': 'cara',
-        'vdd': 'verdade', 'msm': 'mesmo', 'tá': 'tá',
-        'tô': 'tô', 'né': 'né', 'po': 'pô',
+        'slv': 'salve', 'slvmano': 'salve mano', 'slvprc': 'salve parceiro',
+        'prc': 'parceiro', 'cz': 'cara', 'mlk': 'moleque', 'mn': 'mano',
+        'tbm': 'também', 'mto': 'muito', 'pq': 'porque', 'oq': 'o que',
+        'hj': 'hoje', 'vdd': 'verdade', 'msm': 'mesmo', 'ngm': 'ninguém',
+        'qdo': 'quando', 'td': 'tudo', 'vc': 'você', 'vcs': 'vocês',
+        'tô': 'tô', 'tá': 'tá', 'tava': 'tava', 'tamo': 'tamo',
+        'num': 'não', 'né': 'né', 'po': 'pô',
+        'fmz': 'familiares', 'tmj': 'tamo junto', 'blz': 'beleza',
+        'obg': 'obrigado', 'vlw': 'valeu', 'plana': 'plano',
+        'd boa': 'de boa', 'eai': 'e aí', 'iae': 'e aí',
+        'kk': '', 'kkk': '', 'kkkk': '', 'hauahau': '', 'rs': '',
     }
     for abbr_k, full in abbr.items():
         text = re.sub(rf'\b{abbr_k}\b', full, text, flags=re.IGNORECASE)
