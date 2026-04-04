@@ -22,6 +22,7 @@ ENGINE_LABEL = {
 _overlay    = None
 _tray       = None
 _print_lock = threading.Lock()
+_wa_ready   = threading.Event()
 
 
 def strip_wake_word(text: str) -> str:
@@ -83,16 +84,51 @@ def _start_whatsapp():
     except Exception as e:
         print(f"[WhatsApp] Erro ao iniciar bridge: {e}")
 
-    # Importa contatos após Node conectar
+    # Aguarda conexão do WhatsApp, exibe painel e importa contatos
     def _delayed_import():
         import time
-        time.sleep(15)
+        import requests as _req
+
+        # Polling: aguarda connected=true no Node (máx 60s)
+        wa_connected = False
+        for _ in range(30):
+            time.sleep(2)
+            try:
+                r = _req.get("http://localhost:3001/status", timeout=5)
+                if r.ok and r.json().get("connected"):
+                    wa_connected = True
+                    break
+            except Exception:
+                pass
+
+        # Exibe painel de boas-vindas
+        wa_status = "[green]WhatsApp conectado[/green]" if wa_connected else "[yellow]WhatsApp não conectado[/yellow]"
+        if not wa_connected:
+            print("[WhatsApp] Timeout — iniciando sem WhatsApp")
+        with _print_lock:
+            console.print(
+                Panel.fit(
+                    f"[bold cyan]{config.ASSISTANT_NAME} está pronta.[/bold cyan]\n\n"
+                    f"  {wa_status}\n"
+                    "[dim]  • Perguntar qualquer coisa — ciência, história, tecnologia...[/dim]\n"
+                    "[dim]  • 'abre o spotify' / 'abre o youtube'[/dim]\n"
+                    "[dim]  • 'pesquisa o clima em São Paulo hoje'[/dim]\n"
+                    "[dim]  • Ctrl+↑ abre o overlay em qualquer momento[/dim]\n"
+                    "[dim]  • 'sair' para encerrar[/dim]",
+                    border_style="cyan",
+                    title="Stormy",
+                )
+            )
+        _wa_ready.set()
+
+        if not wa_connected:
+            return
+
+        # Importa contatos
         try:
             from whatsapp import import_contacts_to_db, normalize_chat_names
             from database import get_connection
-            import requests as _req
 
-            # Deleta profiles antigos e reimporta do Node
             try:
                 resp = _req.get("http://localhost:3001/contacts", timeout=15)
                 if resp.ok:
@@ -123,7 +159,6 @@ def _start_whatsapp():
                     print(f"[WhatsApp] Contatos atualizados: {count} contatos")
             except Exception as e:
                 print(f"[WhatsApp] Erro ao atualizar contatos: {e}")
-                # Fallback: importa normalmente
                 import_contacts_to_db()
 
             normalize_chat_names()
@@ -202,19 +237,6 @@ def _terminal_loop():
 
 def main() -> None:
     _start_whatsapp()
-
-    console.print(
-        Panel.fit(
-            f"[bold cyan]{config.ASSISTANT_NAME} está pronta.[/bold cyan]\n\n"
-            "[dim]  • Perguntar qualquer coisa — ciência, história, tecnologia...[/dim]\n"
-            "[dim]  • 'abre o spotify' / 'abre o youtube'[/dim]\n"
-            "[dim]  • 'pesquisa o clima em São Paulo hoje'[/dim]\n"
-            "[dim]  • Ctrl+↑ abre o overlay em qualquer momento[/dim]\n"
-            "[dim]  • 'sair' para encerrar[/dim]",
-            border_style="cyan",
-            title="Stormy",
-        )
-    )
 
     threading.Thread(target=_start_tray, daemon=True).start()
     threading.Thread(target=_start_hotkey, daemon=True).start()
