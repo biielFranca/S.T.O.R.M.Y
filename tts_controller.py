@@ -51,6 +51,8 @@ def _normalize_text(text: str) -> str:
     # Remove pontuação solta no final
     text = re.sub(r'[\.,!?]+$', '', text.strip())
     text = re.sub(r'\s+', ' ', text).strip()
+    if text and text[-1] not in ('?', '!'):
+        text = text.rstrip('.,') + '...'
     return text
 
 
