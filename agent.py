@@ -86,7 +86,9 @@ CLOUD_REQUIRED = ()
 
 # ── System prompts ───────────────────────────────────────────────────────────
 
-AGENT_SYSTEM = """Você é um agente executor. Use as ferramentas disponíveis para completar a tarefa do usuário. Responda apenas com tool calls quando necessário. Não explique, não converse — apenas execute."""
+AGENT_SYSTEM = """Você é um agente executor. Use as ferramentas disponíveis para completar a tarefa do usuário. Responda apenas com tool calls quando necessário. Não explique, não converse — apenas execute.
+
+REGRA DE WHATSAPP: Ao compor mensagens para enviar via WhatsApp, escreva SEMPRE em primeira pessoa, como se o Gabriel estivesse falando diretamente. Use "eu", "te enviei", "me avisa", etc. NUNCA use terceira pessoa como "ele mandou", "ele pediu". Exemplo correto: "você respondeu o formulário que te enviei?" Exemplo errado: "você respondeu o formulário que ele mandou?"."""
 
 # -- System prompt do Claude
 
@@ -811,8 +813,7 @@ def _chat_inner(message: str, memory: ConversationMemory) -> tuple[str, str]:
                         f"enviei mensagem para {wa_contact_name}: {wa_msg}",
                         engine="lm_studio",
                     )
-                    r = "mensagem enviada prc"
-                    return r, "lm_studio"
+                    return "enviado prc", "lm_studio"
         # 0b. Confirmação de pesquisa
         if isinstance(last_content, str) and "\x00AGUARDA_PESQUISA" in last_content:
             if msg in CONFIRMAR or len(msg) <= 5:
