@@ -91,8 +91,8 @@ def _start_whatsapp():
 
         # Polling: aguarda connected=true no Node (máx 60s)
         wa_connected = False
-        for _ in range(30):
-            time.sleep(2)
+        for _ in range(20):
+            time.sleep(3)
             try:
                 r = _req.get("http://localhost:3001/status", timeout=5)
                 if r.ok and r.json().get("connected"):
