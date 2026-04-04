@@ -20,6 +20,7 @@ from personality import (
 load_dotenv()
 
 _anthropic_client = None
+_pending_whatsapp = None  # {"phone": ..., "message": ..., "name": ...}
 LM_URL   = "http://localhost:1234/v1/chat/completions"
 LM_MODEL = "qwen2.5-7b-instruct-1m"
 # TOOL_MODEL — modelo especializado em function calling (xLAM-2-8b-fc-r)
@@ -416,13 +417,13 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
 
                 # Confirmação antes de enviar WhatsApp
                 if tool_name == "whatsapp" and tool_args.get("action") == "send":
+                    global _pending_whatsapp
                     phone = tool_args.get("phone", "?")
                     contact_name = _resolve_contact_name(phone)
                     msg_text = tool_args.get("message", "?")
+                    _pending_whatsapp = {"phone": phone, "message": msg_text, "name": contact_name}
                     confirm_msg = f"vou mandar '{msg_text}' pro {contact_name}, confirma? (sim/não)"
-                    # Guarda o phone real no marcador interno para usar na execução
-                    internal_msg = f"vou mandar '{msg_text}' pro {contact_name} [phone:{phone}], confirma? (sim/não)"
-                    memory.add_assistant(internal_msg, engine="lm_studio")
+                    memory.add_assistant(confirm_msg, engine="lm_studio")
                     return confirm_msg
 
                 print(f"[Stormy] LM usando ferramenta: {tool_name}")
@@ -774,6 +775,26 @@ def _append_wa_notifications(response: str, engine: str) -> tuple[str, str]:
 
 
 def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
+    global _pending_whatsapp
+    msg_lower = message.strip().lower()
+
+    if _pending_whatsapp:
+        if msg_lower in {"sim", "s", "yes", "confirma", "pode", "manda", "envia", "ok"}:
+            result = execute_tool("whatsapp", {
+                "action": "send",
+                "phone": _pending_whatsapp["phone"],
+                "message": _pending_whatsapp["message"],
+            })
+            _pending_whatsapp = None
+            memory.add_user(message)
+            memory.add_assistant("enviado prc", engine="local")
+            return "enviado prc", "local"
+        if msg_lower in {"não", "nao", "n", "cancela", "no", "nope"}:
+            _pending_whatsapp = None
+            memory.add_user(message)
+            memory.add_assistant("cancelado prc", engine="local")
+            return "cancelado prc", "local"
+
     result = _chat_inner(message, memory)
     return _append_wa_notifications(*result)
 
