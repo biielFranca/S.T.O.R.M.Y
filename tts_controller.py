@@ -47,13 +47,9 @@ def _normalize_text(text: str) -> str:
 
 
 def _play_audio(path: str):
+    import subprocess
     try:
-        import pygame
-        pygame.mixer.init()
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            pygame.time.wait(100)
+        subprocess.run(["aplay", path], check=True, capture_output=True)
     except Exception as e:
         print(f"[TTS] Erro ao tocar: {e}")
 
