@@ -118,7 +118,7 @@ def init():
 
 
 def speak(text: str):
-    if not _enabled or not _ready:
+    if not _enabled:
         return
     _queue.put(text)
 
