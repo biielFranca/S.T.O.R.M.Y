@@ -780,11 +780,14 @@ def chat(message: str, memory: ConversationMemory) -> tuple[str, str]:
 
     if _pending_whatsapp:
         if msg_lower in {"sim", "s", "yes", "confirma", "pode", "manda", "envia", "ok"}:
+            _phone = _pending_whatsapp["phone"]
+            _msg = _pending_whatsapp["message"]
             result = execute_tool("whatsapp", {
                 "action": "send",
-                "phone": _pending_whatsapp["phone"],
-                "message": _pending_whatsapp["message"],
+                "phone": _phone,
+                "message": _msg,
             })
+            print(f"[DEBUG] Enviando para phone={_phone}, result={result}")
             _pending_whatsapp = None
             memory.add_user(message)
             memory.add_assistant("enviado prc", engine="local")
