@@ -277,7 +277,14 @@ def _get_contacts_context() -> str:
     try:
         from database import get_connection
         conn = get_connection()
-        rows = conn.execute("SELECT name, phone FROM profiles WHERE phone IS NOT NULL LIMIT 100").fetchall()
+        rows = conn.execute(
+            """SELECT name, phone FROM profiles
+               WHERE phone IS NOT NULL
+               AND phone NOT LIKE '%@%'
+               AND LOWER(name) NOT LIKE '%newsletter%'
+               AND length(phone) <= 15
+               LIMIT 100"""
+        ).fetchall()
         conn.close()
         if not rows:
             return ""
