@@ -233,6 +233,11 @@ def _terminal_loop():
                     console.print(f"\n[red]Erro:[/red] {e}")
     finally:
         memory.close()
+        try:
+            from tts_controller import _queue
+            _queue.join()
+        except Exception:
+            pass
         import os; os._exit(0)
 
 
