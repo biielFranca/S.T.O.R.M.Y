@@ -425,7 +425,7 @@ def _lm_chat_with_tools(message: str, memory: ConversationMemory) -> str | None:
                 # Confirmação antes de enviar WhatsApp
                 if tool_name == "whatsapp" and tool_args.get("action") == "send":
                     global _pending_whatsapp
-                    phone = tool_args.get("phone", "?")
+                    phone = tool_args.get("phone", "").split("@")[0] or "?"
                     contact_name = _resolve_contact_name(phone)
                     msg_text = tool_args.get("message", "?")
                     _pending_whatsapp = {"phone": phone, "message": msg_text, "name": contact_name}
