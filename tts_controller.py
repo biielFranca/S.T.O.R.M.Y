@@ -14,11 +14,12 @@ os.environ["COQUI_TOS_AGREED"] = "1"
 
 DEFAULT_VOICE = Path(__file__).parent / "stormy_voice.wav"
 
-_tts     = None
-_enabled = True
-_voice   = str(DEFAULT_VOICE)
-_queue   = queue.Queue()
-_ready   = False
+_tts      = None
+_enabled  = True
+_voice    = str(DEFAULT_VOICE)
+_queue    = queue.Queue()
+_ready    = False
+_model_ready = threading.Event()
 
 
 def _normalize_text(text: str) -> str:
@@ -55,15 +56,16 @@ def _play_audio(path: str):
 
 
 def _do_speak(text: str):
-    if not _tts or not _enabled:
+    if not _enabled:
+        return
+    _model_ready.wait()  # aguarda modelo carregar
+    if not _tts:
         return
     text = _normalize_text(text)
     if not text.strip():
         return
-
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         tmp_path = f.name
-
     try:
         voice = _voice if Path(_voice).exists() else None
         _tts.tts_to_file(
@@ -106,6 +108,8 @@ def _load_model():
     except Exception as e:
         print(f"[TTS] Erro ao carregar: {e}")
         _ready = False
+    finally:
+        _model_ready.set()  # libera o worker mesmo se falhar
 
 
 def init():
